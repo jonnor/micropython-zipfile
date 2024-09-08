@@ -1,0 +1,8 @@
+{
+  "urls": [
+    ["zipfile.py", "github:jonnor/micropython-zipfile/zipfile.py"]
+  ],
+  "deps": [
+  ],
+  "version": "0.1"
+}
