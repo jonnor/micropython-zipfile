@@ -49,6 +49,11 @@ Or just copy the `zipfile.py` file to your MicroPython device.
 ## TODO 
 Contributions welcomed!
 
+## Other implementations
+
+- [maruno/mpy-blox zipfile.py](https://github.com/maruno/mpy-blox/blob/master/mpy_blox/zipfile.py). Minimal implementation of `zipfile.ZipFile` which supports only ureading. The function `read()` supports uncompressed or deflate compressed data.
+Not clear if ZIP64 is supported. Not separately installable.
+
 ## Developing
 
 #### Running tests on host
