@@ -20,9 +20,14 @@ jobs:
       working-directory: micropython
       run: source tools/ci.sh && ci_unix_32bit_setup && ci_unix_standard_build
 
+    - name: Install MicroPython modules
+      run: |
+        ${{ env.MICROPYTHON_BIN }} -m mip install contextlib
+        ${{ env.MICROPYTHON_BIN }} -m mip install unittest
+    
     - name: Run tests
       run: |
-        MICROPYPATH=./ ${{ env.MICROPYTHON_BIN }} tests/test_zipfile.py
+        MICROPYPATH=./ ${{ env.MICROPYTHON_BIN }} test_zipfile/test_core.py
 
   test_cpython:
     runs-on: ubuntu-latest
