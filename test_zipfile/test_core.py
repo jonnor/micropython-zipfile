@@ -1,34 +1,38 @@
 import array
-import contextlib
-import importlib.util
 import io
-import itertools
 import os
-import posixpath
 import struct
-import subprocess
 import sys
 import time
 import unittest
-import unittest.mock as mock
+
 import zipfile
+from random import randint, random
+
+is_cpython = sys.implementation.name != 'micropython'
+if is_cpython:
+    from random import randbytes
+    from contextlib import ExitStack
+    from itertools import combinations
+    import posixpath # .basename
+    # FIXME: MicroPython compat
+
+else:
+    def randbytes():
+        # FIXME: implement
+        raise NotImplementedError()
 
 
-from tempfile import TemporaryFile
-from random import randint, random, randbytes
-
-#from test import archiver_tests
-#from test.support import script_helper
-from .support import (
+from test_zipfile.support import (
     findfile, requires_zlib, requires_bz2, requires_lzma, requires_subprocess
 )
-from .support import captured_stdout, captured_stderr
+from test_zipfile.support import captured_stdout, captured_stderr
 
-from .os_helper import (
+from test_zipfile.os_helper import (
     TESTFN, unlink, rmtree, temp_dir, temp_cwd, FakePath
 )
 
-from .os_helper import fd_count
+from test_zipfile.os_helper import fd_count
 
 
 TESTFN2 = TESTFN + "2"
@@ -42,6 +46,8 @@ SMALL_TEST_DATA = [('_ziptest1', '1q2w3e4r5t'),
                    ('ziptest2dir/ziptest3dir/ziptest4dir/_ziptest3', '6y7u8i9o0p')]
 
 def get_files(test):
+    from tempfile import TemporaryFile
+
     yield TESTFN2
     with TemporaryFile() as f:
         yield f
@@ -1092,7 +1098,7 @@ class StoredTestZip64InSmallFiles(AbstractTestZip64InSmallFiles,
         )
 
         for r in range(1, len(params) + 1):
-            for combo in itertools.combinations(params, r):
+            for combo in combinations(params, r):
                 kwargs = {}
                 for c in combo:
                     kwargs.update(c)
@@ -1531,33 +1537,6 @@ class ExtractTests(unittest.TestCase):
 
             unlink(TESTFN2)
 
-"""
-class OverwriteTests(archiver_tests.OverwriteTests, unittest.TestCase):
-    testdir = TESTFN
-
-    @classmethod
-    def setUpClass(cls):
-        p = cls.ar_with_file = TESTFN + '-with-file.zip'
-        cls.addClassCleanup(unlink, p)
-        with zipfile.ZipFile(p, 'w') as zipfp:
-            zipfp.writestr('test', b'newcontent')
-
-        p = cls.ar_with_dir = TESTFN + '-with-dir.zip'
-        cls.addClassCleanup(unlink, p)
-        with zipfile.ZipFile(p, 'w') as zipfp:
-            zipfp.mkdir('test')
-
-        p = cls.ar_with_implicit_dir = TESTFN + '-with-implicit-dir.zip'
-        cls.addClassCleanup(unlink, p)
-        with zipfile.ZipFile(p, 'w') as zipfp:
-            zipfp.writestr('test/file', b'newcontent')
-
-    def open(self, path):
-        return zipfile.ZipFile(path, 'r')
-
-    def extractall(self, ar):
-        ar.extractall(self.testdir)
-"""
 
 class OtherTests(unittest.TestCase):
     def test_open_via_zip_info(self):
@@ -2136,6 +2115,8 @@ class OtherTests(unittest.TestCase):
 
     @requires_bz2()
     def test_decompress_without_3rd_party_library(self):
+        import unittest.mock as mock
+
         data = b'PK\x05\x06\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
         zip_file = io.BytesIO(data)
         with zipfile.ZipFile(zip_file, 'w', compression=zipfile.ZIP_BZIP2) as zf:
@@ -2664,7 +2645,7 @@ class TestsWithMultipleOpens(unittest.TestCase):
     def test_read_after_close(self):
         for f in get_files(self):
             self.make_test_archive(f)
-            with contextlib.ExitStack() as stack:
+            with ExitStack() as stack:
                 with zipfile.ZipFile(f, 'r') as zipf:
                     zopen1 = stack.enter_context(zipf.open('ones'))
                     zopen2 = stack.enter_context(zipf.open('twos'))
@@ -2911,45 +2892,6 @@ class ZipInfoTests(unittest.TestCase):
         self.assertEqual(zi.file_size, 0)
 
 
-class TestExecutablePrependedZip(unittest.TestCase):
-    """Test our ability to open zip files with an executable prepended."""
-
-    def setUp(self):
-        self.exe_zip = findfile('exe_with_zip', subdir='ziptestdata')
-        self.exe_zip64 = findfile('exe_with_z64', subdir='ziptestdata')
-
-    def _test_zip_works(self, name):
-        # bpo28494 sanity check: ensure is_zipfile works on these.
-        self.assertTrue(zipfile.is_zipfile(name),
-                        f'is_zipfile failed on {name}')
-        # Ensure we can operate on these via ZipFile.
-        with zipfile.ZipFile(name) as zipfp:
-            for n in zipfp.namelist():
-                data = zipfp.read(n)
-                self.assertIn(b'FAVORITE_NUMBER', data)
-
-    def test_read_zip_with_exe_prepended(self):
-        self._test_zip_works(self.exe_zip)
-
-    def test_read_zip64_with_exe_prepended(self):
-        self._test_zip_works(self.exe_zip64)
-
-    @unittest.skipUnless(sys.executable, 'sys.executable required.')
-    @unittest.skipUnless(os.access('/bin/bash', os.X_OK),
-                         'Test relies on #!/bin/bash working.')
-    @requires_subprocess()
-    def test_execute_zip2(self):
-        output = subprocess.check_output([self.exe_zip, sys.executable])
-        self.assertIn(b'number in executable: 5', output)
-
-    @unittest.skipUnless(sys.executable, 'sys.executable required.')
-    @unittest.skipUnless(os.access('/bin/bash', os.X_OK),
-                         'Test relies on #!/bin/bash working.')
-    @requires_subprocess()
-    def test_execute_zip64(self):
-        output = subprocess.check_output([self.exe_zip64, sys.executable])
-        self.assertIn(b'number in executable: 5', output)
-
 
 class EncodedMetadataTests(unittest.TestCase):
     file_names = ['\u4e00', '\u4e8c', '\u4e09']  # Han 'one', 'two', 'three'
@@ -3030,7 +2972,7 @@ class EncodedMetadataTests(unittest.TestCase):
         expected_names = [name.encode('shift_jis').decode('cp437')
                           for name in self.file_names[:2]] + self.file_names[2:]
         expected_names.append(newname)
-        expected_content = (*self.file_content, b"newcontent")
+        expected_content = tuple(self.file_content + [ b"newcontent" ])
 
         with zipfile.ZipFile(TESTFN, "a") as zipfp:
             zipfp.writestr(newname, "newcontent")

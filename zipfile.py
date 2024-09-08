@@ -26,41 +26,45 @@ SEEK_END = 2
 
 ALTSEP = '/'
 
-# CPython
-from io import BufferedIOBase
-from threading import RLock
-from shutil import copyfileobj
-from os import PathLike
+is_cpython = sys.implementation.name != 'micropython'
 
+if is_cpython:
+    # CPython
+    from io import BufferedIOBase
+    from threading import RLock
+    from shutil import copyfileobj
+    from os import PathLike
 
-# MicroPython
+else:
+    # MicroPython
 
-"""
-# Dummy base class
-class BufferedIOBase():
-    def __init__(self):
+    # Dummy base class
+    class BufferedIOBase():
+        def __init__(self):
 
-        self.closed = False
+            self.closed = False
+            pass
+
+        def close(self):
+            pass
+
+    # Dummy lock - does nothing
+    class RLock():
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, type, value, traceback):
+            pass
+
+    # FIXME: implement
+    def copyfileobj(source, target, blocksize):
         pass
 
-    def close(self):
+    # FIXME: map to pathlib.Path
+    class PathLike(object):
         pass
-
-# Dummy lock - does nothing
-class RLock():
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, type, value, traceback):
-        pass
-
-# FIXME: implement
-def copyfileobj(source, target, blocksize):
-    pass
-
-"""
-
+    
 try:
     import zlib # We may need its compression method
     crc32 = zlib.crc32
@@ -1395,7 +1399,7 @@ class ZipFile:
                 "metadata_encoding is only supported for reading files")
 
         # Check if we were passed a file-like object
-        if isinstance(file, os.PathLike):
+        if isinstance(file, PathLike):
             file = os.fspath(file)
         if isinstance(file, str):
             # No, it's a filename

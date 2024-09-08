@@ -8,6 +8,14 @@ import os
 import stat
 import sys
 
+is_cpython = sys.implementation.name != 'micropython'
+if is_cpython:
+    pass
+else:
+    # MicroPython
+    FileNotFoundError = OSError
+    NotADirectoryError = OSError
+
 TESTFN_ASCII = '@test'
 TESTFN = TESTFN_ASCII
 

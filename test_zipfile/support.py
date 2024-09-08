@@ -10,7 +10,7 @@ import contextlib
 
 # TEST_HOME_DIR refers to the top level directory of the "test" package
 # that contains Python's regression test suite
-TEST_SUPPORT_DIR = os.path.dirname(os.path.abspath(__file__))
+TEST_SUPPORT_DIR = 'test_zipfile'
 TEST_HOME_DIR = TEST_SUPPORT_DIR
 
 has_subprocess_support = False
