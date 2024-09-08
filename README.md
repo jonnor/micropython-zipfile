@@ -10,6 +10,10 @@ Was initially made for [micropython-npyfile](https://github.com/jonnor/micropyth
 Which again was made for [emlearn-micropython](https://github.com/emlearn/emlearn-micropython),
 a Machine Learning and Digital Signal Processing library for MicroPython.
 
+## Status
+**Proof-of-concept**. zipfile module tested working for basic unzipping on Unix MicroPython port.
+Working on getting the test suite from CPython to pass also under MicroPython.
+
 ## License
 
 The majority of the code is copied from the CPython 3.12 implementation of `zipfile`.
@@ -23,9 +27,15 @@ With the exception of the **Limitations** documented below, it should have the s
 
 #### Limitations
 
-`FIXME: document`
+These limitations could be lifted if people contributed
 
-- Only DEFLATE
+- Only DEFLATE and STORED (uncompressed) supported. LZMA, BZ2 *not supported*
+- `Path` objects not supported.
+
+These limitations are likely to be forever
+
+- PyFile objects not supported
+- Usage as a command-line module not supported
 
 
 ## Installing
@@ -58,15 +68,23 @@ Not clear if ZIP64 is supported. Not separately installable.
 
 #### Running tests on host
 
-Install the Unix/Window port of MicroPython. Then run:
+Install the Unix/Window port of MicroPython.
+
+Install modules used by the tests
 
 ```
-MICROPYPATH=./ micropython tests/test_zipfile.py
+micropython -m mip install contextlib unittest os-path stat shutil
+```
+
+Run the test with MicroPython:
+
+```
+MICROPYPATH=.:$HOME/.micropython/lib micropython -X heapsize=10M test_zipfile/test_core.py
 ```
 
 The tests can also be ran under CPython
 ```
-PYTHONPATH=./ python tests/test_zipfile.py
+PYTHONPATH=./ python test_zipfile/test_core.py  -v
 ```
 
 #### Running tests on device
