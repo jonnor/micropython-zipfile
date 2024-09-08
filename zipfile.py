@@ -46,7 +46,7 @@ else:
             pass
 
         def close(self):
-            pass
+            self.closed = True
 
     # Dummy lock - does nothing
     class RLock():
@@ -934,9 +934,6 @@ class ZipExtFile(BufferedIOBase):
         self._fileobj = fileobj
         self._pwd = pwd
         self._close_fileobj = close_fileobj
-
-        # FIXME: MicroPython compat
-        #self.closed = False 
 
         self._compress_type = zipinfo.compress_type
         self._compress_left = zipinfo.compress_size
