@@ -22,11 +22,7 @@ jobs:
 
     - name: Install MicroPython modules
       run: |
-        ${{ env.MICROPYTHON_BIN }} -m mip install contextlib
-        ${{ env.MICROPYTHON_BIN }} -m mip install unittest
-        ${{ env.MICROPYTHON_BIN }} -m mip install os-path
-        ${{ env.MICROPYTHON_BIN }} -m mip install stat
-        ${{ env.MICROPYTHON_BIN }} -m mip install shutil
+        ${{ env.MICROPYTHON_BIN }} -m mip install contextlib unittest os-path stat shutil
     
     - name: Run tests
       run: |
