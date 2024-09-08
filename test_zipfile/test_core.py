@@ -29,7 +29,7 @@ from test_zipfile.support import (
 from test_zipfile.support import captured_stdout, captured_stderr
 
 from test_zipfile.os_helper import (
-    TESTFN, unlink, rmtree, temp_dir, temp_cwd, FakePath
+    TESTFN, unlink, rmtree, rmdir, temp_dir, temp_cwd, FakePath
 )
 
 from test_zipfile.os_helper import fd_count
@@ -2304,6 +2304,10 @@ class DecryptionTests(unittest.TestCase):
     plain2 = b'\x00'*512
 
     def setUp(self):
+        unlink(TESTFN)
+        unlink(TESTFN2)
+        rmdir(TESTFN)
+        rmdir(TESTFN2)
         with open(TESTFN, "wb") as fp:
             fp.write(self.data)
         self.zip = zipfile.ZipFile(TESTFN, "r")
@@ -2313,9 +2317,9 @@ class DecryptionTests(unittest.TestCase):
 
     def tearDown(self):
         self.zip.close()
-        os.unlink(TESTFN)
+        unlink(TESTFN)
         self.zip2.close()
-        os.unlink(TESTFN2)
+        unlink(TESTFN2)
 
     def test_no_password(self):
         # Reading the encrypted file without password
