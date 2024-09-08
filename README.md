@@ -3,7 +3,7 @@
 
 # micropython-zipfile
 
-Support for [Zip files (.zip)]()https://en.wikipedia.org/wiki/ZIP_(file_format) for [MicroPython](https://micropython.org/).
+Support for [.zip files](https://en.wikipedia.org/wiki/ZIP_(file_format)) for [MicroPython](https://micropython.org/).
 Port of CPython [zipfile](https://docs.python.org/3/library/zipfile.html).
 
 Was initially made for [micropython-npyfile](https://github.com/jonnor/micropython-npyfile/), to support Numpy .npz files (uses a ZIP archive).
@@ -11,8 +11,10 @@ Which again was made for [emlearn-micropython](https://github.com/emlearn/emlear
 a Machine Learning and Digital Signal Processing library for MicroPython.
 
 ## Status
-**Proof-of-concept**. zipfile module tested working for basic unzipping on Unix MicroPython port.
-Working on getting the test suite from CPython to pass also under MicroPython.
+**Proof-of-concept**.
+
+- zipfile module tested working for basic unzipping on Unix MicroPython port.
+- Working on getting the test suite from CPython to pass also under MicroPython.
 
 ## License
 
