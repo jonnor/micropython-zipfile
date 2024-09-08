@@ -9,11 +9,14 @@ PYTHON SOFTWARE FOUNDATION LICENSE VERSION 2
 import binascii
 import io
 import os
-#import shutil # FIXME: implement copyfileobj
-#import stat
+
+try:
+    import stat
+except ImportError:
+    pass
+
 import struct
 import sys
-#import threading
 
 import time
 
@@ -23,6 +26,16 @@ SEEK_END = 2
 
 ALTSEP = '/'
 
+# CPython
+from io import BufferedIOBase
+from threading import RLock
+from shutil import copyfileobj
+from os import PathLike
+
+
+# MicroPython
+
+"""
 # Dummy base class
 class BufferedIOBase():
     def __init__(self):
@@ -41,6 +54,12 @@ class RLock():
 
     def __exit__(self, type, value, traceback):
         pass
+
+# FIXME: implement
+def copyfileobj(source, target, blocksize):
+    pass
+
+"""
 
 try:
     import zlib # We may need its compression method
@@ -584,8 +603,8 @@ class ZipInfo (object):
         this will be the same as filename, but without a drive letter and with
         leading path separators removed).
         """
-        #if isinstance(filename, os.PathLike):
-        #    filename = os.fspath(filename)
+        if isinstance(filename, PathLike):
+            filename = os.fspath(filename)
         st = os.stat(filename)
         isdir = stat.S_ISDIR(st.st_mode)
         mtime = time.localtime(st.st_mtime)
@@ -832,10 +851,14 @@ class _SharedFile:
         self._close = close
         self._lock = lock
         self._writing = writing
-        #self.seekable = True #file.seekable FIXME
 
-    def seekable(self):
-        return True # FIXME: defer to self._file.seekable
+        self.seekable = file.seekable
+
+        # FIXME: MicroPython compat
+        #self.seekable = True
+
+    #def seekable(self):
+    #    return True # FIXME: defer to self._file.seekable
 
     def tell(self):
         return self._pos
@@ -907,7 +930,9 @@ class ZipExtFile(BufferedIOBase):
         self._fileobj = fileobj
         self._pwd = pwd
         self._close_fileobj = close_fileobj
-        self.closed = False 
+
+        # FIXME: MicroPython compat
+        #self.closed = False 
 
         self._compress_type = zipinfo.compress_type
         self._compress_left = zipinfo.compress_size
@@ -1370,8 +1395,8 @@ class ZipFile:
                 "metadata_encoding is only supported for reading files")
 
         # Check if we were passed a file-like object
-        #if isinstance(file, os.PathLike):
-        #    file = os.fspath(file)
+        if isinstance(file, os.PathLike):
+            file = os.fspath(file)
         if isinstance(file, str):
             # No, it's a filename
             self._filePassed = 0
@@ -1852,7 +1877,7 @@ class ZipFile:
 
         with self.open(member, pwd=pwd) as source, \
              open(targetpath, "wb") as target:
-            shutil.copyfileobj(source, target)
+            copyfileobj(source, target)
 
         return targetpath
 
@@ -1910,7 +1935,7 @@ class ZipFile:
                 zinfo._compresslevel = self.compresslevel
 
             with open(filename, "rb") as src, self.open(zinfo, 'w') as dest:
-                shutil.copyfileobj(src, dest, 1024*8)
+                copyfileobj(src, dest, 1024*8)
 
     def writestr(self, zinfo_or_arcname, data,
                  compress_type=None, compresslevel=None):

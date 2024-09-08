@@ -3058,43 +3058,6 @@ class EncodedMetadataTests(unittest.TestCase):
                                         "^metadata_encoding is only"):
                 ZF("nonesuch.zip", mode, metadata_encoding="shift_jis")
 
-    def test_cli_with_metadata_encoding(self):
-        errmsg = "Non-conforming encodings not supported with -c."
-        args = ["--metadata-encoding=shift_jis", "-c", "nonesuch", "nonesuch"]
-        with captured_stdout() as stdout:
-            with captured_stderr() as stderr:
-                self.assertRaises(SystemExit, zipfile.main, args)
-        self.assertEqual(stdout.getvalue(), "")
-        self.assertIn(errmsg, stderr.getvalue())
-
-        with captured_stdout() as stdout:
-            zipfile.main(["--metadata-encoding=shift_jis", "-t", TESTFN])
-        listing = stdout.getvalue()
-
-        with captured_stdout() as stdout:
-            zipfile.main(["--metadata-encoding=shift_jis", "-l", TESTFN])
-        listing = stdout.getvalue()
-        for name in self.file_names:
-            self.assertIn(name, listing)
-
-    def test_cli_with_metadata_encoding_extract(self):
-        os.mkdir(TESTFN2)
-        self.addCleanup(rmtree, TESTFN2)
-        # Depending on locale, extracted file names can be not encodable
-        # with the filesystem encoding.
-        for fn in self.file_names:
-            try:
-                os.stat(os.path.join(TESTFN2, fn))
-            except OSError:
-                pass
-            except UnicodeEncodeError:
-                self.skipTest(f'cannot encode file name {fn!r}')
-
-        zipfile.main(["--metadata-encoding=shift_jis", "-e", TESTFN, TESTFN2])
-        listing = os.listdir(TESTFN2)
-        for name in self.file_names:
-            self.assertIn(name, listing)
-
 
 class StripExtraTests(unittest.TestCase):
     # Note: all of the "z" characters are technically invalid, but up

@@ -82,7 +82,17 @@ alpharep_generators = [
 
 pass_alpharep = parameterize(['alpharep'], alpharep_generators)
 
+def requires_path(reason='requires zipfile.Path'):
+    zipfile_path = None
+    try:
+        from zipfile import Path
+        zipfile_path = Path
+    except ImportError:
+        pass
+    return unittest.skipUnless(zipfile_path, reason)
 
+
+@requires_path()
 class TestPath(unittest.TestCase):
     def setUp(self):
         self.fixtures = contextlib.ExitStack()
