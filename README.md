@@ -3,9 +3,10 @@
 
 # micropython-zipfile
 
-Support for [Zip files (.zip)](https://numpy.org/doc/stable/reference/generated/numpy.lib.format.html) for [MicroPython](https://micropython.org/).
+Support for [Zip files (.zip)]()https://en.wikipedia.org/wiki/ZIP_(file_format) for [MicroPython](https://micropython.org/).
+Port of CPython [zipfile](https://docs.python.org/3/library/zipfile.html).
 
-Was initially made for [micropython-npyfile](), to support Numpy .npz files (uses a ZIP archive).
+Was initially made for [micropython-npyfile](https://github.com/jonnor/micropython-npyfile/), to support Numpy .npz files (uses a ZIP archive).
 Which again was made for [emlearn-micropython](https://github.com/emlearn/emlearn-micropython),
 a Machine Learning and Digital Signal Processing library for MicroPython.
 
