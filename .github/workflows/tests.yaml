@@ -26,6 +26,7 @@ jobs:
         ${{ env.MICROPYTHON_BIN }} -m mip install unittest
         ${{ env.MICROPYTHON_BIN }} -m mip install os-path
         ${{ env.MICROPYTHON_BIN }} -m mip install stat
+        ${{ env.MICROPYTHON_BIN }} -m mip install shutil
     
     - name: Run tests
       run: |
