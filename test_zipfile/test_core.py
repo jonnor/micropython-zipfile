@@ -17,15 +17,18 @@ import zipfile
 from tempfile import TemporaryFile
 from random import randint, random, randbytes
 
-from test import archiver_tests
-from test.support import script_helper
-from test.support import (
-    findfile, requires_zlib, requires_bz2, requires_lzma,
-    captured_stdout, captured_stderr, requires_subprocess
+#from test import archiver_tests
+#from test.support import script_helper
+from .support import (
+    findfile, requires_zlib, requires_bz2, requires_lzma, requires_subprocess
 )
-from test.support.os_helper import (
-    TESTFN, unlink, rmtree, temp_dir, temp_cwd, fd_count, FakePath
+#from .support import captured_stdout, captured_stderr
+
+from .os_helper import (
+    TESTFN, unlink, rmtree, temp_dir, temp_cwd, FakePath
 )
+
+#from .os_helper import fd_count
 
 
 TESTFN2 = TESTFN + "2"
@@ -1721,7 +1724,7 @@ class ExtractTests(unittest.TestCase):
 
             unlink(TESTFN2)
 
-
+"""
 class OverwriteTests(archiver_tests.OverwriteTests, unittest.TestCase):
     testdir = TESTFN
 
@@ -1747,7 +1750,7 @@ class OverwriteTests(archiver_tests.OverwriteTests, unittest.TestCase):
 
     def extractall(self, ar):
         ar.extractall(self.testdir)
-
+"""
 
 class OtherTests(unittest.TestCase):
     def test_open_via_zip_info(self):

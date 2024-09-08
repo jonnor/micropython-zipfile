@@ -8,7 +8,7 @@ import time
 import unittest
 import zipfile
 
-from test.support.os_helper import temp_dir, FakePath
+from ..os_helper import temp_dir, FakePath
 
 from ._functools import compose
 from ._itertools import Counter
