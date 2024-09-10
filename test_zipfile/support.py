@@ -26,8 +26,12 @@ def requires_zlib(reason='requires zlib'):
     try:
         import zlib
     except ImportError:
+        try:
+            import deflate
+        except ImportError:
+            deflate = None
         zlib = None
-    return unittest.skipUnless(zlib, reason)
+    return unittest.skipUnless(zlib or deflate, reason)
 
 def requires_gzip(reason='requires gzip'):
     try:

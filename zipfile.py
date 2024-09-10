@@ -767,55 +767,23 @@ def _ZipDecrypter(pwd):
     return decrypter
 
 
-class LZMACompressor:
+
+class DeflateCompressor:
 
     def __init__(self):
-        self._comp = None
-
-    def _init(self):
-        props = lzma._encode_filter_properties({'id': lzma.FILTER_LZMA1})
-        self._comp = lzma.LZMACompressor(lzma.FORMAT_RAW, filters=[
-            lzma._decode_filter_properties(lzma.FILTER_LZMA1, props)
-        ])
-        return struct.pack('<BBH', 9, 4, len(props)) + props
+        pass
 
     def compress(self, data):
-        if self._comp is None:
-            return self._init() + self._comp.compress(data)
-        return self._comp.compress(data)
+        wbits = 8 # TODO: respect compression level
+        stream = io.BytesIO()
+        with deflate.DeflateIO(stream, deflate.ZLIB, wbits) as d:
+            d.write(data)
+        compressed = stream.read()
+        return compressed
 
     def flush(self):
-        if self._comp is None:
-            return self._init() + self._comp.flush()
-        return self._comp.flush()
+        pass
 
-
-class LZMADecompressor:
-
-    def __init__(self):
-        self._decomp = None
-        self._unconsumed = b''
-        self.eof = False
-
-    def decompress(self, data):
-        if self._decomp is None:
-            self._unconsumed += data
-            if len(self._unconsumed) <= 4:
-                return b''
-            psize, = struct.unpack('<H', self._unconsumed[2:4])
-            if len(self._unconsumed) <= 4 + psize:
-                return b''
-
-            self._decomp = lzma.LZMADecompressor(lzma.FORMAT_RAW, filters=[
-                lzma._decode_filter_properties(lzma.FILTER_LZMA1,
-                                               self._unconsumed[4:4 + psize])
-            ])
-            data = self._unconsumed[4 + psize:]
-            del self._unconsumed
-
-        result = self._decomp.decompress(data)
-        self.eof = self._decomp.eof
-        return result
 
 class DeflateDecompressor:
 
@@ -856,17 +824,11 @@ def _check_compression(compression):
     if compression == ZIP_STORED:
         pass
     elif compression == ZIP_DEFLATED:
-        if not deflate and not zlib:
-            raise RuntimeError(
-                "Compression requires the (missing) zlib or deflate modules")
+        pass
     elif compression == ZIP_BZIP2:
-        if not bz2:
-            raise RuntimeError(
-                "Compression requires the (missing) bz2 module")
+        raise NotImplementedError("bzip2 not supported")
     elif compression == ZIP_LZMA:
-        if not lzma:
-            raise RuntimeError(
-                "Compression requires the (missing) lzma module")
+        raise NotImplementedError("lzma not supported")
     else:
         raise NotImplementedError("That compression method is not supported")
 
@@ -874,7 +836,10 @@ def _check_compression(compression):
 def _get_compressor(compress_type, compresslevel=None):
     if compress_type == ZIP_DEFLATED:
         if compresslevel is not None:
-            return zlib.compressobj(compresslevel, zlib.DEFLATED, -15)
+            if deflate:
+                return DeflateCompressor()
+            else:
+                zlib.compressobj(compresslevel, zlib.DEFLATED, -15)
         return zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION, zlib.DEFLATED, -15)
     elif compress_type == ZIP_BZIP2:
         if compresslevel is not None:

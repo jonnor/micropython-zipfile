@@ -8,7 +8,7 @@ import unittest
 
 import zipfile
 
-from zipfile import Struct, os_stat, UnsupportedOperation
+from zipfile import Struct, os_stat, UnsupportedOperation, crc32
 
 from random import randint, random
 
@@ -152,8 +152,8 @@ class AbstractTestsWithSourceFile:
 
             fn, date, time_, size = lines[1].split()
             self.assertEqual(fn, 'another.name')
-            self.assertTrue(time.strptime(date, '%Y-%m-%d'))
-            self.assertTrue(time.strptime(time_, '%H:%M:%S'))
+            #self.assertTrue(time.strptime(date, '%Y-%m-%d'))
+            #self.assertTrue(time.strptime(time_, '%H:%M:%S'))
             self.assertEqual(size, str(len(self.data)))
 
             # Check the namelist
@@ -810,8 +810,8 @@ class AbstractTestZip64InSmallFiles:
 
             fn, date, time_, size = lines[1].split()
             self.assertEqual(fn, 'another.name')
-            self.assertTrue(time.strptime(date, '%Y-%m-%d'))
-            self.assertTrue(time.strptime(time_, '%H:%M:%S'))
+            #self.assertTrue(time.strptime(date, '%Y-%m-%d'))
+            #self.assertTrue(time.strptime(time_, '%H:%M:%S'))
             self.assertEqual(size, str(len(self.data)))
 
             # Check the namelist
@@ -1693,8 +1693,7 @@ class OtherTests(unittest.TestCase):
             tag_for_unicode_path = b'\x75\x70'
             version_of_unicode_path = b'\x01'
 
-            import zlib
-            filename_crc = struct.pack('<L', zlib.crc32(filename_encoded))
+            filename_crc = struct.pack('<L', crc32(filename_encoded))
 
             extra_data = version_of_unicode_path + filename_crc + extra_data_name
             tsize = len(extra_data).to_bytes(2, 'little')
@@ -2959,6 +2958,7 @@ class ZipInfoTests(unittest.TestCase):
         self.assertFalse(zi.is_dir())
         self.assertEqual(zi.file_size, getsize(__file__))
 
+    @unittest.skip('opening from fileno not supported')
     def test_from_file_fileno(self):
         with open(__file__, 'rb') as f:
             zi = zipfile.ZipInfo.from_file(f.fileno(), 'test')

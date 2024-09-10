@@ -32,7 +32,8 @@ With the exception of the **Limitations** documented below, it should have the s
 These limitations could be lifted if people contributed
 
 - Only DEFLATE and STORED (uncompressed) supported. LZMA, BZ2 *not supported*
-- `Path` objects not supported.
+- `PathLike` objects not supported.
+- `readline()` and `readlines()` on file objects not supported
 
 These limitations are likely to be forever
 
