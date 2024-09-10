@@ -78,9 +78,15 @@ else:
         def __exit__(self, type, value, traceback):
             pass
 
-    # FIXME: implement
-    def copyfileobj(source, target, blocksize=1024):
-        raise NotImplementedError()
+    def copyfileobj(fsrc, fdst, length=0):
+        """copy data from file-like object fsrc to file-like object fdst"""
+        if not length:
+            length = 1 * 1024
+        while True:
+            buf = fsrc.read(length)
+            if not buf:
+                break
+            fdst.write(buf)
 
     # FIXME: map to pathlib.Path
     class PathLike(object):
@@ -2080,9 +2086,6 @@ class ZipFile:
         records."""
         if self.fp is None:
             return
-
-        # XXX: hack
-        self._writing = False
 
         if self._writing:
             raise ValueError("Can't close the ZIP file while there is "

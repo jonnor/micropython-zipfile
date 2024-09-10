@@ -16,7 +16,6 @@ is_cpython = sys.implementation.name != 'micropython'
 if is_cpython:
     from random import randbytes
     from contextlib import ExitStack
-    from itertools import combinations
     from posixpath import basename
     from os import SEEK_SET, SEEK_CUR, SEEK_END
     from os.path import getsize
@@ -33,6 +32,27 @@ else:
 
     from os.path import basename # should be equivalent to posixpath basename
     from zipfile import SEEK_SET, SEEK_CUR, SEEK_END, UserWarning
+
+
+def combinations(iterable, r):
+    pool = tuple(iterable)
+    n = len(pool)
+    if r > n:
+        return
+    indices = list(range(r))
+    yield tuple(pool[i] for i in indices)
+    while True:
+        index = 0
+        for i in reversed(range(r)):
+            if indices[i] != i + n - r:
+                index = i
+                break
+        else:
+            return
+        indices[index] += 1
+        for j in range(index + 1, r):
+            indices[j] = indices[j - 1] + 1
+        yield tuple(pool[i] for i in indices)
 
 from test_zipfile.support import (
     findfile, requires_zlib, requires_bz2, requires_lzma, requires_subprocess
