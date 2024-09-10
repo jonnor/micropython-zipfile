@@ -19,18 +19,20 @@ if is_cpython:
     from itertools import combinations
     from posixpath import basename
     from os import SEEK_SET, SEEK_CUR, SEEK_END
-    # FIXME: MicroPython compat
+    from os.path import getsize
 
 else:
     def randbytes(n):
-        # FIXME: implement
-        raise NotImplementedError()
+        out = bytes([randint(0, 255) for _ in range(n)])
+        assert len(out) == n
+        return out
+
+    def getsize(path):
+        s = os_stat(path)
+        return s.st_size
 
     from os.path import basename # should be equivalent to posixpath basename
-    from zipfile import SEEK_SET, SEEK_CUR, SEEK_END
-
-    class UserWarning(Exception):
-        pass
+    from zipfile import SEEK_SET, SEEK_CUR, SEEK_END, UserWarning
 
 from test_zipfile.support import (
     findfile, requires_zlib, requires_bz2, requires_lzma, requires_subprocess
@@ -51,6 +53,15 @@ def requires_utime(reason='requires os.utime'):
     return unittest.skipUnless(False, reason)
 
 def requires_assert_raises_regex(reason='requires unittest assertRaisesRegex'):
+    return unittest.skipUnless(False, reason)
+
+def requires_comments(reason='requires comments functionality'):
+    return unittest.skipUnless(False, reason)
+
+def requires_readline(reason='requires comments functionality'):
+    return unittest.skipUnless(False, reason)
+
+def requires_extract(reason='requires extract functionality'):
     return unittest.skipUnless(False, reason)
 
 
@@ -251,6 +262,7 @@ class AbstractTestsWithSourceFile:
         for f in get_files(self):
             self.zip_read1_10_test(f, self.compression)
 
+    @requires_readline
     def zip_readline_read_test(self, f, compression):
         self.make_test_archive(f, compression)
 
@@ -271,11 +283,13 @@ class AbstractTestsWithSourceFile:
 
         self.assertEqual(data, self.data)
 
+    @requires_readline
     def test_readline_read(self):
         # Issue #7610: calls to readline() interleaved with calls to read().
         for f in get_files(self):
             self.zip_readline_read_test(f, self.compression)
 
+    @requires_readline
     def zip_readline_test(self, f, compression):
         self.make_test_archive(f, compression)
 
@@ -286,10 +300,12 @@ class AbstractTestsWithSourceFile:
                     linedata = zipopen.readline()
                     self.assertEqual(linedata, line)
 
+    @requires_readline
     def test_readline(self):
         for f in get_files(self):
             self.zip_readline_test(f, self.compression)
 
+    @requires_readline
     def zip_readlines_test(self, f, compression):
         self.make_test_archive(f, compression)
 
@@ -300,10 +316,12 @@ class AbstractTestsWithSourceFile:
             for line, zipline in zip(self.line_gen, ziplines):
                 self.assertEqual(zipline, line)
 
+    @requires_readline
     def test_readlines(self):
         for f in get_files(self):
             self.zip_readlines_test(f, self.compression)
 
+    @requires_readline
     def zip_iterlines_test(self, f, compression):
         self.make_test_archive(f, compression)
 
@@ -313,6 +331,7 @@ class AbstractTestsWithSourceFile:
                 for line, zipline in zip(self.line_gen, zipopen):
                     self.assertEqual(zipline, line)
 
+    @requires_readline
     def test_iterlines(self):
         for f in get_files(self):
             self.zip_iterlines_test(f, self.compression)
@@ -1366,6 +1385,7 @@ class LzmaWriterTests(AbstractWriterTests, unittest.TestCase):
     compression = zipfile.ZIP_LZMA
 
 
+@requires_extract
 class ExtractTests(unittest.TestCase):
 
     def make_test_file(self):
@@ -1904,6 +1924,7 @@ class OtherTests(unittest.TestCase):
         self.assertEqual(zipfile.sizeEndCentDir64, 56)
         self.assertEqual(zipfile.sizeEndCentDir64Locator, 20)
 
+    @requires_comments()
     def test_comments(self):
         """Check that comments on the archive are handled properly."""
 
@@ -1955,19 +1976,21 @@ class OtherTests(unittest.TestCase):
         with zipfile.ZipFile(TESTFN,mode="w") as zipf:
             zipf.comment = b"original comment that's longer"
             zipf.writestr("foo.txt", "O, for a Muse of Fire!")
-        original_zip_size = os.path.getsize(TESTFN)
+        original_zip_size = getsize(TESTFN)
         with zipfile.ZipFile(TESTFN,mode="a") as zipf:
             zipf.comment = b"shorter comment"
-        self.assertTrue(original_zip_size > os.path.getsize(TESTFN))
+        self.assertTrue(original_zip_size > getsize(TESTFN))
         with zipfile.ZipFile(TESTFN,mode="r") as zipf:
             self.assertEqual(zipf.comment, b"shorter comment")
 
+    @requires_comments()
     def test_unicode_comment(self):
         with zipfile.ZipFile(TESTFN, "w", zipfile.ZIP_STORED) as zipf:
             zipf.writestr("foo.txt", "O, for a Muse of Fire!")
             with self.assertRaises(TypeError):
                 zipf.comment = "this is an error"
 
+    @requires_comments()
     def test_change_comment_in_empty_archive(self):
         with zipfile.ZipFile(TESTFN, "a", zipfile.ZIP_STORED) as zipf:
             self.assertFalse(zipf.filelist)
@@ -1975,6 +1998,7 @@ class OtherTests(unittest.TestCase):
         with zipfile.ZipFile(TESTFN, "r") as zipf:
             self.assertEqual(zipf.comment, b"this is a comment")
 
+    @requires_comments()
     def test_change_comment_in_nonempty_archive(self):
         with zipfile.ZipFile(TESTFN, "w", zipfile.ZIP_STORED) as zipf:
             zipf.writestr("foo.txt", "O, for a Muse of Fire!")
@@ -2751,6 +2775,7 @@ class TestWithDirectory(unittest.TestCase):
     def setUp(self):
         os.mkdir(TESTFN2)
 
+    @requires_extract()
     def test_extract_dir(self):
         with zipfile.ZipFile(findfile("zipdir.zip")) as zipf:
             zipf.extractall(TESTFN2)
@@ -2758,11 +2783,13 @@ class TestWithDirectory(unittest.TestCase):
         self.assertTrue(os.path.isdir(os.path.join(TESTFN2, "a", "b")))
         self.assertTrue(os.path.exists(os.path.join(TESTFN2, "a", "b", "c")))
 
+    @requires_extract()
     def test_bug_6050(self):
         # Extraction should succeed if directories already exist
         os.mkdir(os.path.join(TESTFN2, "a"))
         self.test_extract_dir()
 
+    @requires_extract()
     def test_extract_dir_backslash(self):
         zfname = findfile("zipdir_backslash.zip")
         with zipfile.ZipFile(zfname) as zipf:
@@ -2897,27 +2924,27 @@ class ZipInfoTests(unittest.TestCase):
         zi = zipfile.ZipInfo.from_file(__file__)
         self.assertEqual(basename(zi.filename), 'test_core.py')
         self.assertFalse(zi.is_dir())
-        self.assertEqual(zi.file_size, os.path.getsize(__file__))
+        self.assertEqual(zi.file_size, getsize(__file__))
 
     @requires_path()
     def test_from_file_pathlike(self):
         zi = zipfile.ZipInfo.from_file(FakePath(__file__))
         self.assertEqual(basename(zi.filename), 'test_core.py')
         self.assertFalse(zi.is_dir())
-        self.assertEqual(zi.file_size, os.path.getsize(__file__))
+        self.assertEqual(zi.file_size, getsize(__file__))
 
     def test_from_file_bytes(self):
         zi = zipfile.ZipInfo.from_file(os.fsencode(__file__), 'test')
         self.assertEqual(basename(zi.filename), 'test')
         self.assertFalse(zi.is_dir())
-        self.assertEqual(zi.file_size, os.path.getsize(__file__))
+        self.assertEqual(zi.file_size, getsize(__file__))
 
     def test_from_file_fileno(self):
         with open(__file__, 'rb') as f:
             zi = zipfile.ZipInfo.from_file(f.fileno(), 'test')
             self.assertEqual(basename(zi.filename), 'test')
             self.assertFalse(zi.is_dir())
-            self.assertEqual(zi.file_size, os.path.getsize(__file__))
+            self.assertEqual(zi.file_size, getsize(__file__))
 
     def test_from_dir(self):
         dirpath = os.path.dirname(os.path.abspath(__file__))

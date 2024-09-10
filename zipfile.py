@@ -10,8 +10,8 @@ import binascii
 import io
 import os
 
-if hasattr(os, 'UnsupportedOperation'):
-    UnsupportedOperation = os.UnsupportedOperation
+if hasattr(io, 'UnsupportedOperation'):
+    UnsupportedOperation = io.UnsupportedOperation
 else:
     class UnsupportedOperation(OSError):
         pass
@@ -47,6 +47,10 @@ if is_cpython:
     os_stat = os.stat
     from os import fspath
     os_path_splitdrive = os.path.splitdrive
+    
+    def warn(s, stacklevel=None):
+        import warnings
+        warnings.warn(s, stacklevel=stacklevel)
 
 else:
     # MicroPython
@@ -75,8 +79,8 @@ else:
             pass
 
     # FIXME: implement
-    def copyfileobj(source, target, blocksize):
-        pass
+    def copyfileobj(source, target, blocksize=1024):
+        raise NotImplementedError()
 
     # FIXME: map to pathlib.Path
     class PathLike(object):
@@ -108,6 +112,13 @@ else:
         """Split a pathname into drive and path. On Posix, drive is always empty."""
         p = fspath(p)
         return p[:0], p
+
+    class UserWarning(Exception):
+        pass
+
+    def warn(s, stacklevel=None):
+        print('WARNING', s)
+        raise UserWarning(s)
 
 try:
     import zlib # We may need its compression method
@@ -632,8 +643,7 @@ class ZipInfo (object):
                         if up_unicode_name:
                             self.filename = _sanitize_filename(up_unicode_name)
                         else:
-                            import warnings
-                            warnings.warn("Empty unicode path extra field (0x7075)", stacklevel=2)
+                            warn("Empty unicode path extra field (0x7075)", stacklevel=2)
                 except struct.error as e:
                     raise BadZipFile("Corrupt unicode path extra field (0x7075)") from e
                 except UnicodeDecodeError as e:
@@ -1682,8 +1692,7 @@ class ZipFile:
             raise TypeError("comment: expected bytes, got %s" % type(comment).__name__)
         # check for valid comment length
         if len(comment) > ZIP_MAX_COMMENT:
-            import warnings
-            warnings.warn('Archive comment is too long; truncating to %d bytes'
+            warn('Archive comment is too long; truncating to %d bytes'
                           % ZIP_MAX_COMMENT, stacklevel=2)
             comment = comment[:ZIP_MAX_COMMENT]
         self._comment = comment
@@ -1934,8 +1943,7 @@ class ZipFile:
     def _writecheck(self, zinfo):
         """Check for errors before writing a file to the archive."""
         if zinfo.filename in self.NameToInfo:
-            import warnings
-            warnings.warn('Duplicate name: %r' % zinfo.filename, stacklevel=3)
+            warn('Duplicate name: %r' % zinfo.filename, stacklevel=3)
         if self.mode not in ('w', 'x', 'a'):
             raise ValueError("write() requires mode 'w', 'x', or 'a'")
         if not self.fp:
