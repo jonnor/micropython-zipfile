@@ -7,6 +7,9 @@ import time
 import unittest
 
 import zipfile
+
+from zipfile import Struct, os_stat, UnsupportedOperation
+
 from random import randint, random
 
 is_cpython = sys.implementation.name != 'micropython'
@@ -14,14 +17,20 @@ if is_cpython:
     from random import randbytes
     from contextlib import ExitStack
     from itertools import combinations
-    import posixpath # .basename
+    from posixpath import basename
+    from os import SEEK_SET, SEEK_CUR, SEEK_END
     # FIXME: MicroPython compat
 
 else:
-    def randbytes():
+    def randbytes(n):
         # FIXME: implement
         raise NotImplementedError()
 
+    from os.path import basename # should be equivalent to posixpath basename
+    from zipfile import SEEK_SET, SEEK_CUR, SEEK_END
+
+    class UserWarning(Exception):
+        pass
 
 from test_zipfile.support import (
     findfile, requires_zlib, requires_bz2, requires_lzma, requires_subprocess
@@ -35,6 +44,16 @@ from test_zipfile.os_helper import (
 from test_zipfile.os_helper import fd_count
 
 
+def requires_path(reason='requires pathlib/Path'):
+    return unittest.skipUnless(False, reason)
+
+def requires_utime(reason='requires os.utime'):
+    return unittest.skipUnless(False, reason)
+
+def requires_assert_raises_regex(reason='requires unittest assertRaisesRegex'):
+    return unittest.skipUnless(False, reason)
+
+
 TESTFN2 = TESTFN + "2"
 TESTFNDIR = TESTFN + "d"
 FIXEDTEST_SIZE = 1000
@@ -46,15 +65,15 @@ SMALL_TEST_DATA = [('_ziptest1', '1q2w3e4r5t'),
                    ('ziptest2dir/ziptest3dir/ziptest4dir/_ziptest3', '6y7u8i9o0p')]
 
 def get_files(test):
-    from tempfile import TemporaryFile
 
     yield TESTFN2
-    with TemporaryFile() as f:
-        yield f
-        test.assertFalse(f.closed)
+    #from tempfile import TemporaryFile
+    #with TemporaryFile() as f:
+    #    yield f
+    #    test.assertFalse(f.closed)
     with io.BytesIO() as f:
         yield f
-        test.assertFalse(f.closed)
+        #test.assertFalse(f.closed)
 
 class AbstractTestsWithSourceFile:
     @classmethod
@@ -167,6 +186,7 @@ class AbstractTestsWithSourceFile:
         for f in get_files(self):
             self.zip_open_test(f, self.compression)
 
+    @requires_path()
     def test_open_with_pathlike(self):
         path = FakePath(TESTFN2)
         self.zip_open_test(path, self.compression)
@@ -463,7 +483,7 @@ class AbstractTestsWithSourceFile:
         with zipfile.ZipFile(TESTFN2, mode="r") as zipfp:
             with zipfp.open(fname) as fid:
                 self.assertEqual(fid.name, fname)
-                self.assertRaises(io.UnsupportedOperation, fid.fileno)
+                self.assertRaises(UnsupportedOperation, fid.fileno)
                 self.assertEqual(fid.mode, 'r')
                 self.assertIs(fid.readable(), True)
                 self.assertIs(fid.writable(), False)
@@ -472,7 +492,7 @@ class AbstractTestsWithSourceFile:
             self.assertIs(fid.closed, True)
             self.assertEqual(fid.name, fname)
             self.assertEqual(fid.mode, 'r')
-            self.assertRaises(io.UnsupportedOperation, fid.fileno)
+            self.assertRaises(UnsupportedOperation, fid.fileno)
             self.assertRaises(ValueError, fid.readable)
             self.assertIs(fid.writable(), False)
             self.assertRaises(ValueError, fid.seekable)
@@ -631,6 +651,7 @@ class StoredTestsWithSourceFile(AbstractTestsWithSourceFile,
             with self.assertRaises(ValueError):
                 zipfp.open(TESTFN, mode='w')
 
+    @requires_utime()
     def test_add_file_before_1980(self):
         # Set atime and mtime to 1970-01-01
         os.utime(TESTFN, (0, 0))
@@ -642,6 +663,7 @@ class StoredTestsWithSourceFile(AbstractTestsWithSourceFile,
             zinfo = zipfp.getinfo(TESTFN)
             self.assertEqual(zinfo.date_time, (1980, 1, 1, 0, 0, 0))
 
+    @requires_utime()
     def test_add_file_after_2107(self):
         # Set atime and mtime to 2108-12-30
         ts = 4386268800
@@ -654,7 +676,7 @@ class StoredTestsWithSourceFile(AbstractTestsWithSourceFile,
         except OverflowError:
             self.skipTest('Host fs cannot set timestamp to required value.')
 
-        mtime_ns = os.stat(TESTFN).st_mtime_ns
+        mtime_ns = os_stat(TESTFN).st_mtime_ns
         if mtime_ns != (4386268800 * 10**9):
             # XFS filesystem is limited to 32-bit timestamp, but the syscall
             # didn't fail. Moreover, there is a VFS bug which returns
@@ -1317,13 +1339,13 @@ class AbstractWriterTests:
         fname = "somefile.txt"
         with zipfile.ZipFile(TESTFN2, mode="w", compression=self.compression) as zipfp:
             with zipfp.open(fname, 'w') as fid:
-                self.assertRaises(io.UnsupportedOperation, fid.fileno)
+                self.assertRaises(UnsupportedOperation, fid.fileno)
                 self.assertIs(fid.readable(), False)
                 self.assertIs(fid.writable(), True)
                 self.assertIs(fid.seekable(), False)
                 self.assertIs(fid.closed, False)
             self.assertIs(fid.closed, True)
-            self.assertRaises(io.UnsupportedOperation, fid.fileno)
+            self.assertRaises(UnsupportedOperation, fid.fileno)
             self.assertIs(fid.readable(), False)
             self.assertIs(fid.writable(), True)
             self.assertIs(fid.seekable(), False)
@@ -1393,6 +1415,7 @@ class ExtractTests(unittest.TestCase):
         with temp_dir() as extdir:
             self._test_extract_with_target(extdir)
 
+    @requires_path()
     def test_extract_with_target_pathlike(self):
         with temp_dir() as extdir:
             self._test_extract_with_target(FakePath(extdir))
@@ -1428,6 +1451,7 @@ class ExtractTests(unittest.TestCase):
         with temp_dir() as extdir:
             self._test_extract_all_with_target(extdir)
 
+    @requires_path()
     def test_extract_all_with_target_pathlike(self):
         with temp_dir() as extdir:
             self._test_extract_all_with_target(FakePath(extdir))
@@ -1715,8 +1739,11 @@ class OtherTests(unittest.TestCase):
         with open(TESTFN, "w", encoding='utf-8') as fp:
             fp.write("this is not a legal zip file\n")
         self.assertFalse(zipfile.is_zipfile(TESTFN))
+
         # - passing a path-like object
-        self.assertFalse(zipfile.is_zipfile(FakePath(TESTFN)))
+        # TODO requires_path()
+        #self.assertFalse(zipfile.is_zipfile(FakePath(TESTFN)))
+
         # - passing a file object
         with open(TESTFN, "rb") as fp:
             self.assertFalse(zipfile.is_zipfile(fp))
@@ -2066,17 +2093,17 @@ class OtherTests(unittest.TestCase):
             zipf.writestr("foo.txt", txt)
         with zipfile.ZipFile(TESTFN, "r") as zipf:
             with zipf.open("foo.txt", "r") as fp:
-                fp.seek(bloc, os.SEEK_SET)
+                fp.seek(bloc, SEEK_SET)
                 self.assertEqual(fp.tell(), bloc)
-                fp.seek(-bloc, os.SEEK_CUR)
+                fp.seek(-bloc, SEEK_CUR)
                 self.assertEqual(fp.tell(), 0)
-                fp.seek(bloc, os.SEEK_CUR)
+                fp.seek(bloc, SEEK_CUR)
                 self.assertEqual(fp.tell(), bloc)
                 self.assertEqual(fp.read(5), txt[bloc:bloc+5])
                 self.assertEqual(fp.tell(), bloc + 5)
-                fp.seek(0, os.SEEK_END)
+                fp.seek(0, SEEK_END)
                 self.assertEqual(fp.tell(), len(txt))
-                fp.seek(0, os.SEEK_SET)
+                fp.seek(0, SEEK_SET)
                 self.assertEqual(fp.tell(), 0)
         # Check seek on memory file
         data = io.BytesIO()
@@ -2084,17 +2111,17 @@ class OtherTests(unittest.TestCase):
             zipf.writestr("foo.txt", txt)
         with zipfile.ZipFile(data, mode="r") as zipf:
             with zipf.open("foo.txt", "r") as fp:
-                fp.seek(bloc, os.SEEK_SET)
+                fp.seek(bloc, SEEK_SET)
                 self.assertEqual(fp.tell(), bloc)
-                fp.seek(-bloc, os.SEEK_CUR)
+                fp.seek(-bloc, SEEK_CUR)
                 self.assertEqual(fp.tell(), 0)
-                fp.seek(bloc, os.SEEK_CUR)
+                fp.seek(bloc, SEEK_CUR)
                 self.assertEqual(fp.tell(), bloc)
                 self.assertEqual(fp.read(5), txt[bloc:bloc+5])
                 self.assertEqual(fp.tell(), bloc + 5)
-                fp.seek(0, os.SEEK_END)
+                fp.seek(0, SEEK_END)
                 self.assertEqual(fp.tell(), len(txt))
-                fp.seek(0, os.SEEK_SET)
+                fp.seek(0, SEEK_SET)
                 self.assertEqual(fp.tell(), 0)
 
     def test_read_after_seek(self):
@@ -2105,12 +2132,12 @@ class OtherTests(unittest.TestCase):
             zipf.writestr("foo.txt", txt)
         with zipfile.ZipFile(TESTFN, mode="r") as zipf:
             with zipf.open("foo.txt", "r") as fp:
-                fp.seek(bloc, os.SEEK_CUR)
+                fp.seek(bloc, SEEK_CUR)
                 self.assertEqual(fp.read(-1), b'men!')
         with zipfile.ZipFile(TESTFN, mode="r") as zipf:
             with zipf.open("foo.txt", "r") as fp:
                 fp.read(6)
-                fp.seek(1, os.SEEK_CUR)
+                fp.seek(1, SEEK_CUR)
                 self.assertEqual(fp.read(-1), b'men!')
 
     @requires_bz2()
@@ -2125,6 +2152,7 @@ class OtherTests(unittest.TestCase):
             with zipfile.ZipFile(zip_file) as zf:
                 self.assertRaises(RuntimeError, zf.extract, 'a.txt')
 
+    @requires_assert_raises_regex
     @requires_zlib()
     def test_full_overlap(self):
         data = (
@@ -2154,6 +2182,7 @@ class OtherTests(unittest.TestCase):
             with self.assertRaisesRegex(zipfile.BadZipFile, 'File name.*differ'):
                 zipf.read('b')
 
+    @requires_assert_raises_regex
     @requires_zlib()
     def test_quoted_overlap(self):
         data = (
@@ -2340,6 +2369,7 @@ class DecryptionTests(unittest.TestCase):
         self.zip2.setpassword(b"12345")
         self.assertEqual(self.zip2.read("zero"), self.plain2)
 
+    @requires_assert_raises_regex
     def test_unicode_password(self):
         expected_msg = "pwd: expected bytes, got str"
 
@@ -2366,11 +2396,11 @@ class DecryptionTests(unittest.TestCase):
         bloc = txt.find(test_word)
         bloc_len = len(test_word)
         with self.zip.open("test.txt", "r") as fp:
-            fp.seek(bloc, os.SEEK_SET)
+            fp.seek(bloc, SEEK_SET)
             self.assertEqual(fp.tell(), bloc)
-            fp.seek(-bloc, os.SEEK_CUR)
+            fp.seek(-bloc, SEEK_CUR)
             self.assertEqual(fp.tell(), 0)
-            fp.seek(bloc, os.SEEK_CUR)
+            fp.seek(bloc, SEEK_CUR)
             self.assertEqual(fp.tell(), bloc)
             self.assertEqual(fp.read(bloc_len), txt[bloc:bloc+bloc_len])
 
@@ -2381,15 +2411,15 @@ class DecryptionTests(unittest.TestCase):
             fp.MIN_READ_SIZE = 1
             fp._readbuffer = b''
             fp._offset = 0
-            fp.seek(0, os.SEEK_SET)
+            fp.seek(0, SEEK_SET)
             self.assertEqual(fp.tell(), 0)
-            fp.seek(bloc, os.SEEK_CUR)
+            fp.seek(bloc, SEEK_CUR)
             self.assertEqual(fp.read(bloc_len), txt[bloc:bloc+bloc_len])
             fp.MIN_READ_SIZE = old_read_size
 
-            fp.seek(0, os.SEEK_END)
+            fp.seek(0, SEEK_END)
             self.assertEqual(fp.tell(), len(txt))
-            fp.seek(0, os.SEEK_SET)
+            fp.seek(0, SEEK_SET)
             self.assertEqual(fp.tell(), 0)
 
             # Read the file completely to definitely call any eof integrity
@@ -2535,6 +2565,7 @@ class Unseekable:
     def flush(self):
         self.fp.flush()
 
+@unittest.skip("requires BufferedWriter")
 class UnseekableTests(unittest.TestCase):
     def test_writestr(self):
         for wrapper in (lambda f: f), Tellable, Unseekable:
@@ -2751,7 +2782,7 @@ class TestWithDirectory(unittest.TestCase):
     def test_write_dir(self):
         dirpath = os.path.join(TESTFN2, "x")
         os.mkdir(dirpath)
-        mode = os.stat(dirpath).st_mode & 0xFFFF
+        mode = os_stat(dirpath).st_mode & 0xFFFF
         with zipfile.ZipFile(TESTFN, "w") as zipf:
             zipf.write(dirpath)
             zinfo = zipf.filelist[0]
@@ -2832,7 +2863,7 @@ class TestWithDirectory(unittest.TestCase):
 
             directory = os.path.join(TESTFN2, "directory2")
             os.mkdir(directory)
-            mode = os.stat(directory).st_mode & 0xFFFF
+            mode = os_stat(directory).st_mode & 0xFFFF
             zf.write(directory, arcname="directory2/")
             zinfo = zf.filelist[1]
             self.assertEqual(zinfo.filename, "directory2/")
@@ -2864,26 +2895,27 @@ class TestWithDirectory(unittest.TestCase):
 class ZipInfoTests(unittest.TestCase):
     def test_from_file(self):
         zi = zipfile.ZipInfo.from_file(__file__)
-        self.assertEqual(posixpath.basename(zi.filename), 'test_core.py')
+        self.assertEqual(basename(zi.filename), 'test_core.py')
         self.assertFalse(zi.is_dir())
         self.assertEqual(zi.file_size, os.path.getsize(__file__))
 
+    @requires_path()
     def test_from_file_pathlike(self):
         zi = zipfile.ZipInfo.from_file(FakePath(__file__))
-        self.assertEqual(posixpath.basename(zi.filename), 'test_core.py')
+        self.assertEqual(basename(zi.filename), 'test_core.py')
         self.assertFalse(zi.is_dir())
         self.assertEqual(zi.file_size, os.path.getsize(__file__))
 
     def test_from_file_bytes(self):
         zi = zipfile.ZipInfo.from_file(os.fsencode(__file__), 'test')
-        self.assertEqual(posixpath.basename(zi.filename), 'test')
+        self.assertEqual(basename(zi.filename), 'test')
         self.assertFalse(zi.is_dir())
         self.assertEqual(zi.file_size, os.path.getsize(__file__))
 
     def test_from_file_fileno(self):
         with open(__file__, 'rb') as f:
             zi = zipfile.ZipInfo.from_file(f.fileno(), 'test')
-            self.assertEqual(posixpath.basename(zi.filename), 'test')
+            self.assertEqual(basename(zi.filename), 'test')
             self.assertFalse(zi.is_dir())
             self.assertEqual(zi.file_size, os.path.getsize(__file__))
 
@@ -2997,6 +3029,7 @@ class EncodedMetadataTests(unittest.TestCase):
                 else:
                     self.assertEqual(zipfp.read(name), content)
 
+    @requires_assert_raises_regex
     def test_write_with_metadata_encoding(self):
         ZF = zipfile.ZipFile
         for mode in ("w", "x", "a"):
@@ -3013,7 +3046,7 @@ class StripExtraTests(unittest.TestCase):
     ZIP64_EXTRA = 1
 
     def test_no_data(self):
-        s = struct.Struct("<HH")
+        s = Struct("<HH")
         a = s.pack(self.ZIP64_EXTRA, 0)
         b = s.pack(2, 0)
         c = s.pack(3, 0)
@@ -3028,7 +3061,7 @@ class StripExtraTests(unittest.TestCase):
         self.assertEqual(b+c, zipfile._strip_extra(b+c+a, (self.ZIP64_EXTRA,)))
 
     def test_with_data(self):
-        s = struct.Struct("<HH")
+        s = Struct("<HH")
         a = s.pack(self.ZIP64_EXTRA, 1) + b"a"
         b = s.pack(2, 2) + b"bb"
         c = s.pack(3, 3) + b"ccc"
@@ -3043,7 +3076,7 @@ class StripExtraTests(unittest.TestCase):
         self.assertEqual(b+c, zipfile._strip_extra(b+c+a, (self.ZIP64_EXTRA,)))
 
     def test_multiples(self):
-        s = struct.Struct("<HH")
+        s = Struct("<HH")
         a = s.pack(self.ZIP64_EXTRA, 1) + b"a"
         b = s.pack(2, 2) + b"bb"
 

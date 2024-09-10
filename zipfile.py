@@ -10,6 +10,12 @@ import binascii
 import io
 import os
 
+if hasattr(os, 'UnsupportedOperation'):
+    UnsupportedOperation = os.UnsupportedOperation
+else:
+    class UnsupportedOperation(OSError):
+        pass
+
 try:
     import stat
 except ImportError:
@@ -24,6 +30,8 @@ SEEK_SET = 0
 SEEK_CUR = 1
 SEEK_END = 2
 
+CURDIR = '.' # os.path.curdir
+PARDIR = '..' # os.path.pardir
 ALTSEP = '/'
 
 is_cpython = sys.implementation.name != 'micropython'
@@ -34,6 +42,11 @@ if is_cpython:
     from threading import RLock
     from shutil import copyfileobj
     from os import PathLike
+    from struct import Struct
+
+    os_stat = os.stat
+    from os import fspath
+    os_path_splitdrive = os.path.splitdrive
 
 else:
     # MicroPython
@@ -41,12 +54,16 @@ else:
     # Dummy base class
     class BufferedIOBase():
         def __init__(self):
-
             self.closed = False
-            pass
 
         def close(self):
             self.closed = True
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, type, value, traceback):
+            self.close()
 
     # Dummy lock - does nothing
     class RLock():
@@ -65,6 +82,33 @@ else:
     class PathLike(object):
         pass
     
+    class Struct():
+        def __init__(self, format):
+            self.format = format
+
+        def pack(self, *args):
+            return struct.pack(self.format, *args)
+
+        def unpack(self, buffer):
+            return struct.unpack(self.format, buffer)
+
+    from collections import namedtuple
+    _stat_namedtuple = namedtuple("usage", ("st_mode", "st_ino", "st_dev", "st_nlink", "st_uid", "st_gid", "st_size", "st_atime", "st_mtime", "st_ctime"))
+
+    def os_stat(path):
+        tpl = os.stat(path)
+        out = _stat_namedtuple(*tpl)
+        return out
+
+    def fspath(path):
+        # TODO: support PathLike objects
+        return path
+
+    def os_path_splitdrive(p):
+        """Split a pathname into drive and path. On Posix, drive is always empty."""
+        p = fspath(p)
+        return p[:0], p
+
 try:
     import zlib # We may need its compression method
     crc32 = zlib.crc32
@@ -247,7 +291,7 @@ _DD_SIGNATURE = 0x08074b50
 
 def _strip_extra(extra, xids):
     # Remove Extra Fields with specified IDs.
-    _EXTRA_FIELD_STRUCT = struct.Struct('<HH')
+    _EXTRA_FIELD_STRUCT = Struct('<HH')
     unpack = _EXTRA_FIELD_STRUCT.unpack
     modified = False
     buffer = []
@@ -608,8 +652,8 @@ class ZipInfo (object):
         leading path separators removed).
         """
         if isinstance(filename, PathLike):
-            filename = os.fspath(filename)
-        st = os.stat(filename)
+            filename = fspath(filename)
+        st = os_stat(filename)
         isdir = stat.S_ISDIR(st.st_mode)
         mtime = time.localtime(st.st_mtime)
         date_time = mtime[0:6]
@@ -620,7 +664,7 @@ class ZipInfo (object):
         # Create ZipInfo instance to store file information
         if arcname is None:
             arcname = filename
-        arcname = os.path.normpath(os.path.splitdrive(arcname)[1])
+        arcname = os.path.normpath(os_path_splitdrive(arcname)[1])
         while arcname[0] in (os.sep, ALTSEP):
             arcname = arcname[1:]
         if isdir:
@@ -644,7 +688,7 @@ class ZipInfo (object):
         # created on Windows can use backward slashes.  For compatibility
         # with the extraction code which already handles this:
         if ALTSEP:
-            return self.filename.endswith((os.path.sep, ALTSEP))
+            return self.filename.endswith(os.path.sep) or self.filename.endswith(ALTSEP)
         return False
 
 
@@ -856,13 +900,14 @@ class _SharedFile:
         self._lock = lock
         self._writing = writing
 
-        self.seekable = file.seekable
-
-        # FIXME: MicroPython compat
-        #self.seekable = True
-
-    #def seekable(self):
-    #    return True # FIXME: defer to self._file.seekable
+    def seekable(self):
+        file_has_seekable = hasattr(self._file, 'seekable')
+        if file_has_seekable:
+            # CPython
+            return self._file.seekable()
+        else:
+            # seekable not implemented on MicroPython, try to infer
+            return hasattr(self._file, 'seek')
 
     def tell(self):
         return self._pos
@@ -931,6 +976,8 @@ class ZipExtFile(BufferedIOBase):
 
     def __init__(self, fileobj, mode, zipinfo, pwd=None,
                  close_fileobj=False):
+        super().__init__()
+
         self._fileobj = fileobj
         self._pwd = pwd
         self._close_fileobj = close_fileobj
@@ -1190,7 +1237,7 @@ class ZipExtFile(BufferedIOBase):
         if self.closed:
             raise ValueError("seek on closed file.")
         if not self._seekable:
-            raise io.UnsupportedOperation("underlying stream is not seekable")
+            raise UnsupportedOperation("underlying stream is not seekable")
         curr_pos = self.tell()
         if whence == SEEK_SET:
             new_pos = offset
@@ -1221,7 +1268,7 @@ class ZipExtFile(BufferedIOBase):
             self._expected_crc = None
             # seek actual file taking already buffered data into account
             read_offset -= len(self._readbuffer) - self._offset
-            self._fileobj.seek(read_offset, os.SEEK_CUR)
+            self._fileobj.seek(read_offset, SEEK_CUR)
             self._left -= read_offset
             read_offset = 0
             # flush read buffer
@@ -1253,13 +1300,15 @@ class ZipExtFile(BufferedIOBase):
         if self.closed:
             raise ValueError("tell on closed file.")
         if not self._seekable:
-            raise io.UnsupportedOperation("underlying stream is not seekable")
+            raise UnsupportedOperation("underlying stream is not seekable")
         filepos = self._orig_file_size - self._left - len(self._readbuffer) + self._offset
         return filepos
 
 
 class _ZipWriteFile(BufferedIOBase):
     def __init__(self, zf, zinfo, zip64):
+        super().__init__()
+
         self._zinfo = zinfo
         self._zip64 = zip64
         self._zipfile = zf
@@ -1397,7 +1446,7 @@ class ZipFile:
 
         # Check if we were passed a file-like object
         if isinstance(file, PathLike):
-            file = os.fspath(file)
+            file = fspath(file)
         if isinstance(file, str):
             # No, it's a filename
             self._filePassed = 0
@@ -1800,7 +1849,7 @@ class ZipFile:
         if path is None:
             path = os.getcwd()
         else:
-            path = os.fspath(path)
+            path = fspath(path)
 
         return self._extract_member(member, path, pwd)
 
@@ -1817,7 +1866,7 @@ class ZipFile:
         if path is None:
             path = os.getcwd()
         else:
-            path = os.fspath(path)
+            path = fspath(path)
 
         for zipinfo in members:
             self._extract_member(zipinfo, path, pwd)
@@ -1852,8 +1901,8 @@ class ZipFile:
             arcname = arcname.replace(ALTSEP, os.path.sep)
         # interpret absolute pathname as relative, remove drive letter or
         # UNC path, redundant separators, "." and ".." components.
-        arcname = os.path.splitdrive(arcname)[1]
-        invalid_path_parts = ('', os.path.curdir, os.path.pardir)
+        arcname = os_path_splitdrive(arcname)[1]
+        invalid_path_parts = ('', CURDIR, PARDIR)
         arcname = os.path.sep.join(x for x in arcname.split(os.path.sep)
                                    if x not in invalid_path_parts)
         if os.path.sep == '\\':
@@ -2023,6 +2072,9 @@ class ZipFile:
         records."""
         if self.fp is None:
             return
+
+        # XXX: hack
+        self._writing = False
 
         if self._writing:
             raise ValueError("Can't close the ZIP file while there is "

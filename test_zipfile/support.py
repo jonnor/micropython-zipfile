@@ -15,6 +15,9 @@ TEST_HOME_DIR = TEST_SUPPORT_DIR
 
 has_subprocess_support = False
 
+def isabs(p):
+    return p[0] == '/' # POSIXism
+
 def requires_subprocess():
     """Used for subprocess, os.spawn calls, fd inheritance"""
     return unittest.skipUnless(has_subprocess_support, "requires subprocess support")
@@ -55,7 +58,7 @@ def findfile(filename, subdir=None):
     Setting *subdir* indicates a relative path to use to find the file
     rather than looking directly in the path directories.
     """
-    if os.path.isabs(filename):
+    if isabs(filename):
         return filename
     if subdir is not None:
         filename = os.path.join(subdir, filename)
@@ -107,3 +110,5 @@ def captured_stdin():
        self.assertEqual(captured, "hello")
     """
     return captured_output("stdin")
+
+
