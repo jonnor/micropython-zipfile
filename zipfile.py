@@ -771,6 +771,8 @@ def _ZipDecrypter(pwd):
 class DeflateCompressor:
 
     def __init__(self, compresslevel=5):
+        if compresslevel is None:
+            compresslevel = 5
         self.compresslevel = compresslevel
 
     def compress(self, data):
