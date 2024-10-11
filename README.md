@@ -6,6 +6,10 @@
 Support for [.zip files](https://en.wikipedia.org/wiki/ZIP_(file_format)) for [MicroPython](https://micropython.org/).
 Port of CPython [zipfile](https://docs.python.org/3/library/zipfile.html).
 
+A subset of .zip was standardized in ISO/IEC 21320–1:2015 "Document Container File: Core".
+Such files.
+ZIP archives are used as a basis for many common files, such as EPUB, DOCX
+
 Was initially made for [micropython-npyfile](https://github.com/jonnor/micropython-npyfile/), to support Numpy .npz files (uses a ZIP archive).
 Which again was made for [emlearn-micropython](https://github.com/emlearn/emlearn-micropython),
 a Machine Learning and Digital Signal Processing library for MicroPython.
@@ -27,19 +31,28 @@ All modifications/adaptations done in this project can be used under the same li
 This is an adapted implementation of the original [zipfile module](https://docs.python.org/3/library/zipfile.html) in CPython.
 With the exception of the **Limitations** documented below, it should have the same features.
 
+#### Build configuration
+
+This library uses the MicroPython [deflate module](https://docs.micropython.org/en/latest/library/deflate.html#deflate.DeflateIO) to handle compression and decompression.
+Therefore your MicroPython firmware build must include this module,
+which may require you to enable the `MICROPY_PY_DEFLATE` and `MICROPY_PY_DEFLATE_COMPRESS` features.
+
 #### Limitations
 
 These limitations could be lifted if people contributed
 
-- Only DEFLATE and STORED (uncompressed) supported. LZMA, BZ2 *not supported*
+- Only DEFLATE and STORED (uncompressed) supported.
+- LZMA compression *not supported*
+- BZ2 compression *not supported*
 - `PathLike` objects not supported.
 - `readline()` and `readlines()` on file objects not supported
 
-These limitations are likely to be forever
+These limitations are likely to be forever.
 
 - PyFile objects not supported
 - Usage as a command-line module not supported
 
+This is because they are not that relevant in a microcontroller/embedded setting.
 
 ## Installing
 
