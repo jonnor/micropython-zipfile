@@ -770,19 +770,24 @@ def _ZipDecrypter(pwd):
 
 class DeflateCompressor:
 
-    def __init__(self):
-        pass
+    def __init__(self, compresslevel=5):
+        self.compresslevel = compresslevel
 
     def compress(self, data):
-        wbits = 8 # TODO: respect compression level
+
+        # compresslevel should be 0 through 9 for DEFLATED
+        # wbits for DeflateIO is 5 through 15 inclusive
+        wbits = 5+self.compresslevel
         stream = io.BytesIO()
         with deflate.DeflateIO(stream, deflate.ZLIB, wbits) as d:
             d.write(data)
-        compressed = stream.read()
+        compressed = stream.getvalue()
+
+        print('compress', len(data), len(compressed))
         return compressed
 
     def flush(self):
-        pass
+        return b''
 
 
 class DeflateDecompressor:
@@ -835,12 +840,13 @@ def _check_compression(compression):
 
 def _get_compressor(compress_type, compresslevel=None):
     if compress_type == ZIP_DEFLATED:
-        if compresslevel is not None:
-            if deflate:
-                return DeflateCompressor()
-            else:
-                zlib.compressobj(compresslevel, zlib.DEFLATED, -15)
-        return zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION, zlib.DEFLATED, -15)
+        if deflate:
+            return DeflateCompressor(compresslevel)
+        else:
+            # zlib/CPython
+            if compresslevel is not None:
+                return zlib.compressobj(compresslevel, zlib.DEFLATED, -15)
+            return zlib.compressobj(zlib.Z_DEFAULT_COMPRESSION, zlib.DEFLATED, -15)
     elif compress_type == ZIP_BZIP2:
         if compresslevel is not None:
             return bz2.BZ2Compressor(compresslevel)
