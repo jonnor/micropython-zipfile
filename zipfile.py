@@ -62,9 +62,6 @@ else:
         def __init__(self):
             self.closed = False
 
-        def truncate(self):
-            pass
-
         def close(self):
             self.closed = True
 
@@ -140,7 +137,7 @@ else:
         print('WARNING', s)
         raise UserWarning(s)
 
-    struct_error = OSError
+    struct_error = ValueError
 
     class UnicodeDecodeError(UnicodeError):
         pass
@@ -803,8 +800,6 @@ class DeflateCompressor:
         with deflate.DeflateIO(stream, deflate.ZLIB, wbits) as d:
             d.write(data)
         compressed = stream.getvalue()
-
-        print('compress', len(data), len(compressed))
         return compressed
 
     def flush(self):
@@ -820,9 +815,13 @@ class DeflateDecompressor:
 
     def decompress(self, data):
         stream = io.BytesIO(data)
-        with deflate.DeflateIO(stream, deflate.AUTO) as d:
-            decompressed = d.read()
-
+        try:
+            with deflate.DeflateIO(stream, deflate.AUTO) as d:
+                decompressed = d.read()
+        except EOFError:
+            return b''
+        except OSError:
+            return b''
         return decompressed
 
 
@@ -1090,6 +1089,9 @@ class ZipExtFile(BufferedIOBase):
         # Return up to 512 bytes to reduce allocation overhead for tight loops.
         return self._readbuffer[self._offset: self._offset + 512]
 
+    def writable(self):
+        return self.mode == 'w'
+
     def readable(self):
         if self.closed:
             raise ValueError("I/O operation on closed file.")
@@ -1332,6 +1334,12 @@ class _ZipWriteFile(BufferedIOBase):
 
     def writable(self):
         return True
+
+    def readable(self):
+        return False
+
+    def seekable(self):
+        return False
 
     def write(self, data):
         if self.closed:
