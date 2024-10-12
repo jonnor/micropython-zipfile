@@ -1458,6 +1458,8 @@ class ZipFile:
         if self.metadata_encoding and mode != 'r':
             raise ValueError(
                 "metadata_encoding is only supported for reading files")
+        if self.metadata_encoding and self.metadata_encoding not in ('ascii', 'utf-8'):
+            raise ValueError('Unsupported metadata_encoding')
 
         # Check if we were passed a file-like object
         if isinstance(file, PathLike):

@@ -31,7 +31,7 @@ else:
         return s.st_size
 
     from os.path import basename # should be equivalent to posixpath basename
-    from zipfile import SEEK_SET, SEEK_CUR, SEEK_END, UserWarning
+    from zipfile import SEEK_SET, SEEK_CUR, SEEK_END, UserWarning, UnicodeDecodeError
 
 
 def fsencode(p):
@@ -2997,7 +2997,6 @@ class ZipInfoTests(unittest.TestCase):
         self.assertEqual(zi.file_size, 0)
 
 
-@unittest.skip('FIXME close fails?')
 class EncodedMetadataTests(unittest.TestCase):
     file_names = ['\u4e00', '\u4e8c', '\u4e09']  # Han 'one', 'two', 'three'
     file_content = [
@@ -3044,12 +3043,14 @@ class EncodedMetadataTests(unittest.TestCase):
             self.assertEqual(info.filename, name)
             self.assertEqual(info.file_size, len(content))
             self.assertEqual(zipfp.read(name), content)
-
+    
+    @unittest.skip('Unsupported encoding')
     def test_read_with_metadata_encoding(self):
         # Read the ZIP archive with correct metadata_encoding
         with zipfile.ZipFile(TESTFN, "r", metadata_encoding='shift_jis') as zipfp:
             self._test_read(zipfp, self.file_names, self.file_content)
 
+    @unittest.skip('Unsupported encoding')
     def test_read_without_metadata_encoding(self):
         # Read the ZIP archive without metadata_encoding
         expected_names = [name.encode('shift_jis').decode('cp437')
@@ -3057,6 +3058,7 @@ class EncodedMetadataTests(unittest.TestCase):
         with zipfile.ZipFile(TESTFN, "r") as zipfp:
             self._test_read(zipfp, expected_names, self.file_content)
 
+    @unittest.skip('Unsupported encoding')
     def test_read_with_incorrect_metadata_encoding(self):
         # Read the ZIP archive with incorrect metadata_encoding
         expected_names = [name.encode('shift_jis').decode('koi8-u')
@@ -3064,6 +3066,7 @@ class EncodedMetadataTests(unittest.TestCase):
         with zipfile.ZipFile(TESTFN, "r", metadata_encoding='koi8-u') as zipfp:
             self._test_read(zipfp, expected_names, self.file_content)
 
+    @unittest.skip('Unsupported encoding')
     def test_read_with_unsuitable_metadata_encoding(self):
         # Read the ZIP archive with metadata_encoding unsuitable for
         # decoding metadata
