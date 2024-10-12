@@ -38,6 +38,7 @@ def requires_gzip(reason='requires gzip'):
         import gzip
     except ImportError:
         gzip = None
+    gzip = None # explicitly not supported at the moment
     return unittest.skipUnless(gzip, reason)
 
 def requires_bz2(reason='requires bz2'):
@@ -45,6 +46,7 @@ def requires_bz2(reason='requires bz2'):
         import bz2
     except ImportError:
         bz2 = None
+    bz2 = None # explicitly not supported at the moment
     return unittest.skipUnless(bz2, reason)
 
 def requires_lzma(reason='requires lzma'):
@@ -52,6 +54,7 @@ def requires_lzma(reason='requires lzma'):
         import lzma
     except ImportError:
         lzma = None
+    lzma = None # explicitly not supported at the moment
     return unittest.skipUnless(lzma, reason)
 
 def findfile(filename, subdir=None):
