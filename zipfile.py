@@ -117,11 +117,10 @@ else:
         return path
 
     def makedirs(path):
-        parts = os.path.split(path)
-        for i in range(len(parts)):
+        parts = path.split(os.sep)
+        for i in range(1, len(parts)+1):
             sub = parts[0:i]
-            print('s', sub)
-            p = os.path.join(sub)
+            p = os.sep.join(sub)
             if not os.path.exists(p):
                 os.mkdir(p)
 
