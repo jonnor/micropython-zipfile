@@ -45,12 +45,14 @@ if is_cpython:
     from struct import Struct
 
     os_stat = os.stat
-    from os import fspath
+    from os import fspath, makedirs
     os_path_splitdrive = os.path.splitdrive
     
     def warn(s, stacklevel=None):
         import warnings
         warnings.warn(s, stacklevel=stacklevel)
+
+    struct_error = struct.error
 
 else:
     # MicroPython
@@ -59,6 +61,9 @@ else:
     class BufferedIOBase():
         def __init__(self):
             self.closed = False
+
+        def truncate(self):
+            pass
 
         def close(self):
             self.closed = True
@@ -114,6 +119,15 @@ else:
         # TODO: support PathLike objects
         return path
 
+    def makedirs(path):
+        parts = os.path.split(path)
+        for i in range(len(parts)):
+            sub = parts[0:i]
+            print('s', sub)
+            p = os.path.join(sub)
+            if not os.path.exists(p):
+                os.mkdir(p)
+
     def os_path_splitdrive(p):
         """Split a pathname into drive and path. On Posix, drive is always empty."""
         p = fspath(p)
@@ -125,6 +139,11 @@ else:
     def warn(s, stacklevel=None):
         print('WARNING', s)
         raise UserWarning(s)
+
+    struct_error = OSError
+
+    class UnicodeDecodeError(UnicodeError):
+        pass
 
 try:
     import zlib # We may need its compression method
@@ -637,7 +656,7 @@ class ZipInfo (object):
                     if self.header_offset == 0xFFFF_FFFF:
                         field = "Header offset"
                         self.header_offset, = unpack('<Q', data[:8])
-                except struct.error:
+                except struct_error:
                     raise BadZipFile(f"Corrupt zip64 extra field. \n {field} not found.")
             elif tp == 0x7075:
                 data = extra[4:ln+4]
@@ -650,7 +669,7 @@ class ZipInfo (object):
                             self.filename = _sanitize_filename(up_unicode_name)
                         else:
                             warn("Empty unicode path extra field (0x7075)", stacklevel=2)
-                except struct.error as e:
+                except struct_error as e:
                     raise BadZipFile("Corrupt unicode path extra field (0x7075)") from e
                 except UnicodeDecodeError as e:
                     raise BadZipFile('Corrupt unicode path extra field (0x7075): invalid utf-8 bytes') from e
@@ -1906,7 +1925,7 @@ class ZipFile:
         # Create all upper directories if necessary.
         upperdirs = os.path.dirname(targetpath)
         if upperdirs and not os.path.exists(upperdirs):
-            os.makedirs(upperdirs)
+            makedirs(upperdirs)
 
         if member.is_dir():
             if not os.path.isdir(targetpath):
