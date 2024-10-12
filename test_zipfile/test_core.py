@@ -1620,9 +1620,12 @@ class OtherTests(unittest.TestCase):
         # Create the ZIP archive
         with zipfile.ZipFile(TESTFN2, "w", zipfile.ZIP_STORED) as zipfp:
             zipfp.writestr("name", "foo")
-            with self.assertWarns(UserWarning):
+            with self.assertRaises(UserWarning):
                 zipfp.writestr("name", "bar")
-            self.assertEqual(zipfp.namelist(), ["name"] * 2)
+            # XXX: CPython difference - we error out instead of allowing the creation
+            self.assertEqual(zipfp.namelist(), ["name"] * 1)
+
+            zipfp.writestr("name2", "bar")
 
         with zipfile.ZipFile(TESTFN2, "r") as zipfp:
             infos = zipfp.infolist()
@@ -1680,6 +1683,7 @@ class OtherTests(unittest.TestCase):
                           io.BytesIO(data), 'r')
 
     @requires_zlib()
+    @unittest.skip('Unsupported encoding')
     def test_read_unicode_filenames(self):
         # bug #10801
         fname = findfile('zip_cp437_header.zip')
@@ -1725,7 +1729,7 @@ class OtherTests(unittest.TestCase):
     @requires_zlib()
     def test_read_zipfile_warning(self):
         self.create_zipfile_with_extra_data("이름.txt", b"")
-        with self.assertWarns(UserWarning):
+        with self.assertRaises(UserWarning):
             zipfile.ZipFile(TESTFN, "r").close()
 
     @requires_zlib()
@@ -1990,7 +1994,7 @@ class OtherTests(unittest.TestCase):
 
         # check a comment that is too long is truncated
         with zipfile.ZipFile(TESTFN, mode="w") as zipf:
-            with self.assertWarns(UserWarning):
+            with self.assertRaises(UserWarning):
                 zipf.comment = comment2 + b'oops'
             zipf.writestr("foo.txt", "O, for a Muse of Fire!")
         with zipfile.ZipFile(TESTFN, mode="r") as zipfr:

@@ -138,8 +138,7 @@ else:
 
     struct_error = ValueError
 
-    class UnicodeDecodeError(UnicodeError):
-        pass
+    UnicodeDecodeError = UnicodeError
 
 try:
     import zlib # We may need its compression method
