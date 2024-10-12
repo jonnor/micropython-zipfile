@@ -3168,4 +3168,8 @@ class StripExtraTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    import sys
+    res = unittest.main()
+    problems = len(res.failures) + len(res.errors)
+    sys.exit(1 if problems else 0)
+
