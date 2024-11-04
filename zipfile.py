@@ -117,10 +117,10 @@ else:
         return path
 
     def makedirs(path):
-        parts = path.split(os.sep)
+        parts = path.split(OS_SEP)
         for i in range(1, len(parts)+1):
             sub = parts[0:i]
-            p = os.sep.join(sub)
+            p = OS_SEP.join(sub)
             if not os.path.exists(p):
                 os.mkdir(p)
 
@@ -139,6 +139,10 @@ else:
     struct_error = ValueError
 
     UnicodeDecodeError = UnicodeError
+
+OS_SEP = os.sep if hasattr(os, 'sep') else '/'
+OS_PATH_SEP = OS_SEP
+
 
 try:
     import zlib # We may need its compression method
@@ -481,8 +485,8 @@ def _sanitize_filename(filename):
     # This is used to ensure paths in generated ZIP files always use
     # forward slashes as the directory separator, as required by the
     # ZIP format specification.
-    if os.sep != "/" and os.sep in filename:
-        filename = filename.replace(os.sep, "/")
+    if OS_SEP != "/" and OS_SEP in filename:
+        filename = filename.replace(OS_SEP, "/")
     if ALTSEP and ALTSEP != "/" and ALTSEP in filename:
         filename = filename.replace(ALTSEP, "/")
     return filename
@@ -695,7 +699,7 @@ class ZipInfo (object):
         if arcname is None:
             arcname = filename
         arcname = os.path.normpath(os_path_splitdrive(arcname)[1])
-        while arcname[0] in (os.sep, ALTSEP):
+        while arcname[0] in (OS_SEP, ALTSEP):
             arcname = arcname[1:]
         if isdir:
             arcname += '/'
@@ -718,7 +722,7 @@ class ZipInfo (object):
         # created on Windows can use backward slashes.  For compatibility
         # with the extraction code which already handles this:
         if ALTSEP:
-            return self.filename.endswith(os.path.sep) or self.filename.endswith(ALTSEP)
+            return self.filename.endswith(OS_PATH_SEP) or self.filename.endswith(ALTSEP)
         return False
 
 
@@ -1910,19 +1914,19 @@ class ZipFile:
 
         # build the destination pathname, replacing
         # forward slashes to platform specific separators.
-        arcname = member.filename.replace('/', os.path.sep)
+        arcname = member.filename.replace('/', OS_PATH_SEP)
 
         if ALTSEP:
-            arcname = arcname.replace(ALTSEP, os.path.sep)
+            arcname = arcname.replace(ALTSEP, OS_PATH_SEP)
         # interpret absolute pathname as relative, remove drive letter or
         # UNC path, redundant separators, "." and ".." components.
         arcname = os_path_splitdrive(arcname)[1]
         invalid_path_parts = ('', CURDIR, PARDIR)
-        arcname = os.path.sep.join(x for x in arcname.split(os.path.sep)
+        arcname = OS_PATH_SEP.join(x for x in arcname.split(OS_PATH_SEP)
                                    if x not in invalid_path_parts)
-        if os.path.sep == '\\':
+        if OS_PATH_SEP == '\\':
             # filter illegal characters on Windows
-            arcname = self._sanitize_windows_name(arcname, os.path.sep)
+            arcname = self._sanitize_windows_name(arcname, OS_PATH_SEP)
 
         if not arcname and not member.is_dir():
             raise ValueError("Empty filename.")
