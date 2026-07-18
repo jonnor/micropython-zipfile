@@ -50,6 +50,7 @@ if is_cpython:
     
     def warn(s, stacklevel=None):
         import warnings
+        warnings.simplefilter("error") # make sure warnings raise WarningError
         warnings.warn(s, stacklevel=stacklevel)
 
     struct_error = struct.error
