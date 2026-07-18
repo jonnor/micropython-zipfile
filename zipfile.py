@@ -50,6 +50,7 @@ if is_cpython:
     
     def warn(s, stacklevel=None):
         import warnings
+        warnings.simplefilter("error") # make sure warnings raise WarningError
         warnings.warn(s, stacklevel=stacklevel)
 
     struct_error = struct.error
@@ -787,45 +788,68 @@ def _ZipDecrypter(pwd):
 
 
 class DeflateCompressor:
-
     def __init__(self, compresslevel=5):
         if compresslevel is None:
             compresslevel = 5
         self.compresslevel = compresslevel
+        self._buf = bytearray()
 
     def compress(self, data):
-
-        # compresslevel should be 0 through 9 for DEFLATED
-        # wbits for DeflateIO is 5 through 15 inclusive
-        wbits = 5+self.compresslevel
-        stream = io.BytesIO()
-        with deflate.DeflateIO(stream, deflate.ZLIB, wbits) as d:
-            d.write(data)
-        compressed = stream.getvalue()
-        return compressed
+        # Buffer only -- real compression happens once, in flush(),
+        # because deflate.DeflateIO must see the whole payload
+        # continuously to produce one valid deflate stream.
+        self._buf += data
+        return b''
 
     def flush(self):
-        return b''
+        # compresslevel should be 0 through 9 for DEFLATED
+        # wbits for DeflateIO is 5 through 15 inclusive
+        wbits = 5 + self.compresslevel
+        stream = io.BytesIO()
+        with deflate.DeflateIO(stream, deflate.RAW, wbits) as d:
+            d.write(bytes(self._buf))
+        return stream.getvalue()
 
 
 class DeflateDecompressor:
-
     def __init__(self):
-        self._decomp = None
+        self._buf = bytearray()
         self.unconsumed_tail = b''
         self.eof = False
 
-    def decompress(self, data):
-        stream = io.BytesIO(data)
-        try:
-            with deflate.DeflateIO(stream, deflate.AUTO) as d:
-                decompressed = d.read()
-        except EOFError:
-            return b''
-        except OSError:
-            return b''
-        return decompressed
+    def decompress(self, data, max_length=0):
+        self._buf += data
+        # Don't decompress yet — nothing to return until flush()
+        return b''
 
+    def flush(self):
+        stream = io.BytesIO(bytes(self._buf))
+        with deflate.DeflateIO(stream, deflate.RAW, 15) as d:
+            out = d.read()
+        self.eof = True
+        return out
+
+
+class DeflateDecompressor:
+    def __init__(self):
+        self._buf = bytearray()
+        self.unconsumed_tail = b''
+        self.eof = False
+        self._done = False
+
+    def decompress(self, data, max_length=0):
+        self._buf += data
+        return b''
+
+    def flush(self):
+        if self._done:
+            return b''
+        stream = io.BytesIO(bytes(self._buf))
+        with deflate.DeflateIO(stream, deflate.RAW, 15) as d:
+            out = d.read()
+        self.eof = True
+        self._done = True
+        return out
 
 compressor_names = {
     0: 'store',
@@ -1198,7 +1222,7 @@ class ZipExtFile(BufferedIOBase):
 
         if self._compress_type == ZIP_STORED:
             self._eof = self._compress_left <= 0
-        elif self._compress_type == ZIP_DEFLATED and zlib:
+        elif self._compress_type == ZIP_DEFLATED:
             n = max(n, self.MIN_READ_SIZE)
             data = self._decompressor.decompress(data, n)
             self._eof = (self._decompressor.eof or
