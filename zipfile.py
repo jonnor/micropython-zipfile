@@ -1199,7 +1199,7 @@ class ZipExtFile(BufferedIOBase):
 
         if self._compress_type == ZIP_STORED:
             self._eof = self._compress_left <= 0
-        elif self._compress_type == ZIP_DEFLATED and zlib:
+        elif self._compress_type == ZIP_DEFLATED:
             n = max(n, self.MIN_READ_SIZE)
             data = self._decompressor.decompress(data, n)
             self._eof = (self._decompressor.eof or
