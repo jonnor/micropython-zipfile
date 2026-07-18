@@ -16,6 +16,10 @@ jobs:
         repository: micropython/micropython
         path: micropython
         ref: v1.28.0
+
+    - name: Enable deflate compression via port config
+      run: echo '#define MICROPY_PY_DEFLATE_COMPRESS (1)' >> micropython/ports/unix/mpconfigport.h
+
     - name: Setup MicroPython X86
       working-directory: micropython
       run: source tools/ci.sh && ci_unix_32bit_setup && ci_unix_standard_build
