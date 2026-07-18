@@ -15,7 +15,7 @@ jobs:
       with:
         repository: micropython/micropython
         path: micropython
-        ref: master
+        ref: v1.28.0
     - name: Setup MicroPython X86
       working-directory: micropython
       run: source tools/ci.sh && ci_unix_32bit_setup && ci_unix_standard_build
