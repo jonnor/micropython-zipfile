@@ -8,7 +8,7 @@ Port of CPython [zipfile](https://docs.python.org/3/library/zipfile.html).
 
 A subset of .zip was standardized in ISO/IEC 21320–1:2015 "Document Container File: Core".
 Such files should work with this module.
-ZIP archives are used as a basis for many common files, such as EPUB, DOCX
+ZIP archives are used as a basis for many common files, such as EPUB, DOCX.
 
 micropython-zipfile was initially made for [micropython-npyfile](https://github.com/jonnor/micropython-npyfile/), to support Numpy .npz files (uses a ZIP archive).
 Which again was made for [emlearn-micropython](https://github.com/emlearn/emlearn-micropython),
@@ -122,7 +122,7 @@ Contributions welcomed!
 
 ## Other implementations
 
-- [maruno/mpy-blox zipfile.py](https://github.com/maruno/mpy-blox/blob/master/mpy_blox/zipfile.py). Minimal implementation of `zipfile.ZipFile` which supports only ureading. The function `read()` supports uncompressed or deflate compressed data.
+- [maruno/mpy-blox zipfile.py](https://github.com/maruno/mpy-blox/blob/master/mpy_blox/zipfile.py). Minimal implementation of `zipfile.ZipFile` which supports only reading. The function `read()` supports uncompressed or deflate compressed data.
 Not clear if ZIP64 is supported. Not separately installable.
 
 ## Developing
