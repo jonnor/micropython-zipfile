@@ -30,6 +30,7 @@ jobs:
     
     - name: Run tests
       run: |
+        MICROPYPATH=./::/home/runner/.micropython/lib ${{ env.MICROPYTHON_BIN }} -X heapsize=1M tests/test_zipfile.py
         MICROPYPATH=./::/home/runner/.micropython/lib ${{ env.MICROPYTHON_BIN }} -X heapsize=10M test_zipfile/test_core.py
 
   test_cpython:
@@ -52,4 +53,5 @@ jobs:
 
     - name: Run tests
       run: |
-        PYTHONPATH=./ python -m pytest test_zipfile
+        PYTHONPATH=./ python -m pytest -v tests/test_zipfile.py
+        PYTHONPATH=./ python -m pytest -v test_zipfile
