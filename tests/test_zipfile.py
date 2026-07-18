@@ -19,10 +19,9 @@ def test_uci_occupancy_dataset():
         header = archive.read('datatest.txt')[0:100]
         assert b'Humidity' in header
 
-        # FIXME: using this form fails
-        #with archive.open('datatest.txt', 'r') as f:
-        #    header = f.read(100)
-        #    assert b'CO2' in header
+        with archive.open('datatest.txt', 'r') as f:
+            header = f.read(100)
+            assert b'CO2' in header
 
 def check_numpy_npz_dataset(path):
     with ZipFile(path, 'r') as archive:
