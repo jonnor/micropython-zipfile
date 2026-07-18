@@ -810,23 +810,22 @@ class DeflateCompressor:
 
 
 class DeflateDecompressor:
-
     def __init__(self):
-        self._decomp = None
+        self._buf = bytearray()
         self.unconsumed_tail = b''
         self.eof = False
 
-    def decompress(self, data):
-        stream = io.BytesIO(data)
-        try:
-            with deflate.DeflateIO(stream, deflate.RAW, 15) as d:
-                decompressed = d.read()
-        except EOFError:
-            return b''
-        except OSError:
-            return b''
-        return decompressed
+    def decompress(self, data, max_length=0):
+        self._buf += data
+        # Don't decompress yet — nothing to return until flush()
+        return b''
 
+    def flush(self):
+        stream = io.BytesIO(bytes(self._buf))
+        with deflate.DeflateIO(stream, deflate.RAW, 15) as d:
+            out = d.read()
+        self.eof = True
+        return out
 
 compressor_names = {
     0: 'store',
